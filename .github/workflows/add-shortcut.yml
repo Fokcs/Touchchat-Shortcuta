@@ -1,0 +1,79 @@
+name: Add Shortcut Redirect
+
+on:
+  workflow_dispatch:
+    inputs:
+      shortcut_name:
+        description: 'Exact Shortcut name (e.g. "Send To Dad") — must match the name in the iOS Shortcuts app'
+        required: true
+      button_label:
+        description: 'Label for the index page (defaults to shortcut_name if left blank)'
+        required: false
+
+jobs:
+  add-redirect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Generate redirect page and update index
+        env:
+          SHORTCUT_NAME: ${{ github.event.inputs.shortcut_name }}
+          BUTTON_LABEL: ${{ github.event.inputs.button_label }}
+        run: |
+          # Use button_label if provided, otherwise fall back to shortcut_name
+          LABEL="${BUTTON_LABEL:-$SHORTCUT_NAME}"
+
+          # Slugify: lowercase, spaces → hyphens, strip non-alphanumeric (keep hyphens)
+          SLUG=$(echo "$SHORTCUT_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g' | sed 's/[^a-z0-9-]//g')
+
+          # URL-encode spaces as %20 (handles names with spaces)
+          ENCODED=$(echo "$SHORTCUT_NAME" | sed 's/ /%20/g')
+
+          OUTFILE="shortcuts/${SLUG}.html"
+
+          # Abort if the file already exists to avoid silent overwrites
+          if [ -f "$OUTFILE" ]; then
+            echo "ERROR: $OUTFILE already exists. Nothing was changed." >&2
+            exit 1
+          fi
+
+          cat > "$OUTFILE" <<EOF
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="refresh" content="0; url=shortcuts://run-shortcut?name=${ENCODED}">
+            <title>Redirecting...</title>
+          </head>
+          <body>
+            <script>
+              window.location.href = "shortcuts://run-shortcut?name=${ENCODED}";
+            </script>
+            <p>Opening Shortcuts... <a href="shortcuts://run-shortcut?name=${ENCODED}">Tap here if it doesn't open.</a></p>
+          </body>
+          </html>
+          EOF
+
+          # Insert new <li> before the closing </ul> in index.html
+          sed -i "s|  </ul>|    <li><a href=\"shortcuts/${SLUG}.html\">${LABEL}</a></li>\n  </ul>|" index.html
+
+          echo "SLUG=$SLUG" >> "$GITHUB_STEP_SUMMARY"
+          echo "Created: $OUTFILE" >> "$GITHUB_STEP_SUMMARY"
+          echo "Shortcut URL: shortcuts://run-shortcut?name=${ENCODED}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit and push
+        env:
+          SHORTCUT_NAME: ${{ github.event.inputs.shortcut_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add shortcuts/ index.html
+          git commit -m "Add redirect for ${SHORTCUT_NAME}"
+          git push origin main

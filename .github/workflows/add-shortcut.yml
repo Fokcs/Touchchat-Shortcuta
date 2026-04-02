@@ -50,13 +50,29 @@ jobs:
           <head>
             <meta charset="UTF-8">
             <meta http-equiv="refresh" content="0; url=shortcuts://run-shortcut?name=${ENCODED}">
-            <title>Redirecting...</title>
+            <title>Send to ${LABEL}</title>
+            <style>
+              body {
+                font-family: -apple-system, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+                background: #f2f2f7;
+              }
+              .card { text-align: center; padding: 2rem; }
+              h1 { font-size: 2.2rem; color: #1c1c1e; margin: 0 0 0.75rem; }
+              p { color: #8e8e93; font-size: 1rem; margin: 0; }
+              a { color: #007aff; text-decoration: none; }
+            </style>
           </head>
           <body>
-            <script>
-              window.location.href = "shortcuts://run-shortcut?name=${ENCODED}";
-            </script>
-            <p>Opening Shortcuts... <a href="shortcuts://run-shortcut?name=${ENCODED}">Tap here if it doesn't open.</a></p>
+            <div class="card">
+              <h1>Sending to ${LABEL}…</h1>
+              <p><a href="shortcuts://run-shortcut?name=${ENCODED}">Tap here if it doesn't open.</a></p>
+            </div>
+            <script>window.location.href = "shortcuts://run-shortcut?name=${ENCODED}";</script>
           </body>
           </html>
           EOF
